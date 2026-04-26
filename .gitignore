@@ -1,0 +1,45 @@
+.venv/
+__pycache__/
+*.pyc
+
+data/screenshots/
+data/raw/
+
+results.json
+results.jl
+
+.scrapy/
+.playwright/
+
+node_modules/
+
+# Python
+__pycache__/
+*.pyc
+
+# Virtual environments
+venv/
+.venv/
+
+# Playwright
+.ms-playwright/
+.cache/
+**/playwright/driver/
+
+# Scrapy outputs
+data/screenshots/*.png
+data/screenshots/*.jl
+data/screenshots/*.jsonl
+data/results.jsonl
+
+# OS
+.DS_Store
+venv/
+__pycache__/
+*.pyc
+.env
+*.db
+*.sqlite3
+node_modules/
+.opencode/
+*.log

@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>RavenCTI — Cyber Threat Intelligence</title>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+--bg0:#06090f;--bg1:#0d1117;--bg2:#161b22;--bg3:#21262d;--bg4:#30363d;
+--border:#30363d;--border2:#484f58;
+--text:#e6edf3;--text2:#8b949e;--text3:#6e7681;
+--red:#f85149;--red-bg:rgba(248,81,73,.12);
+--amber:#d29922;--amber-bg:rgba(210,153,34,.12);
+--orange:#db6d28;--orange-bg:rgba(219,109,40,.12);
+--blue:#58a6ff;--blue-bg:rgba(88,166,255,.12);
+--green:#3fb950;--green-bg:rgba(63,185,80,.12);
+--cyan:#39d2c0;--cyan-bg:rgba(57,210,192,.12);
+--purple:#bc8cff;--purple-bg:rgba(188,140,255,.12);
+--mono:'JetBrains Mono',monospace;
+--sans:'Inter',system-ui,-apple-system,sans-serif;
+--sidebar-w:260px;
+}
+html,body{height:100%}
+body{font-family:var(--sans);background:var(--bg0);color:var(--text);overflow:hidden}
+::-webkit-scrollbar{width:7px;height:7px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--bg3);border-radius:4px}
+::-webkit-scrollbar-thumb:hover{background:var(--border2)}
+input,select,textarea{font-family:var(--sans);font-size:13px;background:var(--bg2);border:1px solid var(--border);color:var(--text);padding:8px 12px;border-radius:6px;outline:none;transition:border-color .15s}
+input:focus,select:focus{border-color:var(--blue)}
+button{font-family:var(--sans)}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:7px 16px;border-radius:6px;font-size:12px;font-weight:500;cursor:pointer;border:1px solid transparent;transition:all .15s;letter-spacing:.01em}
+.btn-primary{background:#1f6feb;color:#fff;border-color:#1f6feb}
+.btn-primary:hover{background:#388bfd;transform:translateY(-1px);box-shadow:0 4px 12px rgba(31,111,235,.3)}
+.btn-danger{background:var(--red);color:#fff;border-color:var(--red)}
+.btn-danger:hover{background:#ff7b72;transform:translateY(-1px)}
+.btn-ghost{background:transparent;color:var(--text2);border-color:var(--border)}
+.btn-ghost:hover{background:var(--bg2);color:var(--text)}
+.btn-sm{padding:4px 12px;font-size:11px}
+.badge{display:inline-flex;align-items:center;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:500;font-family:var(--mono);letter-spacing:.02em;transition:transform .15s}
+.badge:hover{transform:scale(1.05)}
+.b-critical{background:var(--red-bg);color:var(--red);border:1px solid rgba(248,81,73,.25)}
+.b-high{background:var(--amber-bg);color:var(--amber);border:1px solid rgba(210,153,34,.25)}
+.b-medium{background:var(--orange-bg);color:var(--orange);border:1px solid rgba(219,109,40,.2)}
+.b-low{background:var(--blue-bg);color:var(--blue);border:1px solid rgba(88,166,255,.2)}
+.b-info{background:var(--bg3);color:var(--text2);border:1px solid var(--border)}
+.b-green{background:var(--green-bg);color:var(--green);border:1px solid rgba(63,185,80,.2)}
+.b-purple{background:var(--purple-bg);color:var(--purple);border:1px solid rgba(188,140,255,.2)}
+.b-cyan{background:var(--cyan-bg);color:var(--cyan);border:1px solid rgba(57,210,192,.2)}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;padding:10px 14px;font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.6px;border-bottom:1px solid var(--border);white-space:nowrap}
+td{padding:10px 14px;border-bottom:1px solid rgba(48,54,61,.5);vertical-align:top;color:var(--text2);transition:background .15s}
+tr:hover td{background:rgba(255,255,255,.03)}
+.card{background:var(--bg1);border:1px solid var(--border);border-radius:10px;overflow:hidden;transition:border-color .2s,box-shadow .2s}
+.card:hover{border-color:var(--border2);box-shadow:0 0 20px rgba(0,0,0,.2)}
+.card-head{padding:14px 20px;border-bottom:1px solid var(--border);display:flex;alignItems:center;justify-content:space-between}
+.card-head h3{font-size:14px;font-weight:600;color:var(--text)}
+.card-body{padding:16px 20px}
+.mono{font-family:var(--mono)}
+.fade-in{animation:fadeIn .15s ease}
+@keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+@keyframes livePulse{0%,100%{box-shadow:0 0 0 0 rgba(63,185,80,.4)}70%{box-shadow:0 0 0 6px rgba(63,185,80,0)}}
+@keyframes threatPulse{0%,100%{opacity:1}50%{opacity:.7}}
+@keyframes slideUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+@keyframes countUp{from{opacity:0;transform:scale(0.8)}to{opacity:1;transform:scale(1)}}
+.spinner{width:14px;height:14px;border:2px solid var(--border2);border-top-color:var(--blue);border-radius:50%;animation:spin .5s linear infinite;display:inline-block}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes growBar{from{height:0}to{height:var(--bar-h)}}
+@keyframes strokeIn{from{stroke-dashoffset:var(--circ)}to{stroke-dashoffset:0}}
+@keyframes fadeScale{from{opacity:0;transform:scale(0.95)}to{opacity:1;transform:scale(1)}}
+.dot{width:8px;height:8px;border-radius:50%;display:inline-block;flex-shrink:0}
+.dot-active{background:var(--green);animation:livePulse 2s infinite}.dot-error{background:var(--red)}.dot-unknown{background:var(--text3)}
+.section-title{font-size:18px;font-weight:700;color:var(--text);margin-bottom:16px;letter-spacing:-.01em}
+.section-sub{font-size:12px;color:var(--text3);margin-top:2px;font-weight:400}
+.explanation{background:var(--bg2);border-left:3px solid var(--cyan);padding:8px 12px;border-radius:0 4px 4px 0;font-size:11px;color:var(--text3);margin-top:6px}
+.nav-item{padding:11px 14px;border-radius:8px;cursor:pointer;font-size:14px;font-weight:400;color:var(--text2);background:transparent;margin-bottom:2px;transition:all .15s;display:flex;align-items:center;gap:12px;position:relative;overflow:hidden}
+.nav-item:hover{background:var(--bg2);color:var(--text);transform:translateX(2px)}
+.nav-item.active{background:var(--bg2);color:var(--text);font-weight:600;box-shadow:inset 3px 0 0 var(--blue)}
+.nav-item .nav-icon{width:22px;height:22px;flex-shrink:0;display:flex;alignItems:center;justifyContent:center;transition:transform .15s}
+.nav-item:hover .nav-icon{transform:scale(1.15)}
+.stat-card{background:var(--bg1);border:1px solid var(--border);border-radius:10px;padding:"16px 20px";transition:all .2s;position:relative;overflow:hidden}
+.stat-card:hover{border-color:var(--border2);transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,.3)}
+.stat-card::after{content:"";position:absolute;top:0;left:0;right:0;height:2px;background:var(--accent-color,var(--blue));opacity:0;transition:opacity .2s}
+.stat-card:hover::after{opacity:1}
+.scan-row{display:flex;gap:12;animation:slideUp .4s ease both}
+.scan-row:nth-child(2){animation-delay:.05s}
+.scan-row:nth-child(3){animation-delay:.1s}
+.scan-row:nth-child(4){animation-delay:.15s}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const{useState,useEffect,useCallback,useMemo,useRef}=React;
+
+const A={
+  token:localStorage.getItem("raven_token")||"",
+  headers(){const h={"Content-Type":"application/json"};if(A.token)h["Authorization"]="Bearer "+A.token;return h},
+  get(u){return fetch(u,{headers:A.headers()}).then(r=>{if(r.status===401){A.token="";localStorage.removeItem("raven_token");window.__logout&&window.__logout()}return r})},
+  post(u,d){return fetch(u,{method:"POST",headers:A.headers(),body:JSON.stringify(d)})},
+  patch(u,d){return fetch(u,{method:"PATCH",headers:A.headers(),body:JSON.stringify(d)})},
+  del(u){return fetch(u,{method:"DELETE",headers:A.headers()})},
+  jget(u){return A.get(u).then(r=>r.json())},
+  jpost(u,d){return A.post(u,d).then(r=>r.json())},
+  jpatch(u,d){return A.patch(u,d).then(r=>r.json())},
+};
+
+function fmtDate(d){if(!d)return"-";try{return d.replace("T"," ").substring(0,16)}catch(e){return d}}
+function fmtNum(n){return n!=null?n.toLocaleString():"0"}
+function useData(url,deps){const[s,setS]=useState(null),[l,setL]=useState(true);useEffect(()=>{let c=1;setL(true);A.jget(url).then(d=>{if(c)setS(d);setL(false)}).catch(()=>{if(c)setL(false)});return()=>c=0},[url,...(deps||[])]);return[s,l]}
+
+function BarChart({data,height=60,color="var(--blue)",label=""}){
+  if(!data||!data.length)return null;
+  const mx=Math.max(...data.map(d=>d.value),1);
+  const bars=data.map((d,i)=>{
+    var pct=Math.round((d.value/mx)*100);
+    return(
+      <div key={i} style={{flex:1,height:"100%",display:"flex",flexDirection:"column",justifyContent:"flex-end",alignItems:"center",padding:"0 2px"}}>
+        <div style={{
+          width:"100%",maxWidth:36,background:color,borderRadius:"3px 3px 0 0",
+          height:pct+"%",
+          transition:"height 0.6s cubic-bezier(0.34,1.56,0.64,1)",
+          animationDelay:(i*80)+"ms",
+          boxShadow:"0 0 8px "+color.replace("var(","").replace(")","")+"33"
+        }} title={d.label+": "+d.value}></div>
+        <div style={{fontSize:9,color:"var(--text3)",marginTop:3,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",width:"100%",textAlign:"center"}}>{d.label}</div>
+      </div>
+    );
+  });
+  return <div style={{display:"flex",alignItems:"flex-end",gap:3,height}}>{bars}</div>;
+}
+
+function DonutChart({segments,size=80,strokeWidth=10}){
+  if(!segments||!segments.length)return null;
+  const radius=(size-strokeWidth)/2;
+  const circ=2*Math.PI*radius;
+  let acc=0;
+  const total=segments.reduce((a,b)=>a+b.value,0);
+  const arcs=segments.map((s,i)=>{
+    var pct=s.value>0?((s.value/total)*circ):0;
+    var da=pct+" "+(circ-pct);
+    var rot=acc;
+    acc+=pct;
+    return React.createElement("circle",{
+      key:i,cx:size/2,cy:size/2,r:radius,fill:"none",
+      stroke:s.color,strokeWidth:strokeWidth,strokeDasharray:da,
+      transform:"rotate("+rot+" "+size/2+" "+size/2+")",
+      strokeLinecap:"round",
+      style:{transition:"stroke-dasharray 0.8s cubic-bezier(0.4,0,0.2,1)",filter:s.color.indexOf("red")>-1?"drop-shadow(0 0 6px rgba(248,81,73,0.4))":"none"}
+    });
+  });
+  return(
+    <div style={{position:"relative",width:size,height:size,animation:"fadeScale 0.5s ease"}}>
+      <svg width={size} height={size} viewBox={"0 0 "+size+" "+size}>{arcs}</svg>
+      <div style={{position:"absolute",top:0,left:0,right:0,bottom:0,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center"}}>
+        <div style={{fontSize:22,fontWeight:700,color:"var(--text)",fontFamily:"var(--mono)"}}>{total}</div>
+        <div style={{fontSize:9,color:"var(--text3)",marginTop:1}}>total</div>
+      </div>
+    </div>
+  );
+}
+
+function StatCard({label,value,color="var(--text)",sub=""}){
+  return(
+    <div className="stat-card" style={{"--accent-color":color}}>
+      <div style={{fontSize:11,color:"var(--text3)",fontWeight:500,textTransform:"uppercase",letterSpacing:"0.5px"}}>{label}</div>
+      <div style={{fontSize:28,fontWeight:700,color:color,marginTop:6,fontFamily:"var(--mono)",lineHeight:1}}>{fmtNum(value)}</div>
+      {sub&&<div style={{fontSize:11,color:"var(--text3)",marginTop:4}}>{sub}</div>}
+    </div>
+  );
+}
+
+function SevBadge({severity}){
+  var c={critical:"b-critical",high:"b-high",medium:"b-medium",low:"b-low",info:"b-info"};
+  return <span className={"badge "+(c[severity]||"b-info")}>{severity}</span>;
+}
+
+function StatusDot({status}){
+  var m={active:"dot-active",error:"dot-error"};
+  return <span className={"dot "+(m[status]||"dot-unknown")}></span>;
+}
+
+function Loading(){
+  return <div style={{display:"flex",alignItems:"center",justifyContent:"center",height:300,gap:10,color:"var(--text3)",fontSize:13}}><span className="spinner"></span>Loading...</div>;
+}
+function Empty({text}){
+  var t=text||"No data available";
+  return <div style={{padding:48,textAlign:"center",color:"var(--text3)",fontSize:13}}>{t}</div>;
+}
+
+function LoginPage({onLogin}){
+  const[username,setUsername]=useState("");
+  const[password,setPassword]=useState("");
+  const[error,setError]=useState("");
+  const[loading,setLoading]=useState(false);
+  const submit=async(e)=>{e.preventDefault();setLoading(true);setError("");
+    try{const r=await A.jpost("/api/auth/login",{username,password});
+      if(r.error){setError(r.error);setLoading(false);return}
+      A.token=r.token;localStorage.setItem("raven_token",r.token);onLogin(r.user);
+    }catch(er){setError("Connection failed");setLoading(false)}
+  };
+  return(<div style={{height:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"var(--bg0)",position:"relative"}}>
+    <div style={{position:"absolute",inset:0,overflow:"hidden",pointerEvents:"none"}}><div style={{position:"absolute",top:"-50%",left:"-50%",width:"200%",height:"200%",background:"radial-gradient(circle at 50% 50%,rgba(31,111,235,.04) 0%,transparent 60%)",animation:"none"}}></div></div>
+    <div style={{width:400,background:"var(--bg1)",border:"1px solid var(--border)",borderRadius:12,padding:48,boxShadow:"0 24px 80px rgba(0,0,0,.6)",position:"relative",zIndex:1}}>
+      <div style={{textAlign:"center",marginBottom:36}}>
+        <svg width="44" height="44" viewBox="0 0 24 24" fill="none" style={{margin:"0 auto 12px"}}>
+          <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="#58a6ff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+        <div style={{fontSize:22,fontWeight:800,color:"var(--text)",letterSpacing:"-0.3px"}}>RavenCTI</div>
+        <div style={{fontSize:12,color:"var(--text3)",marginTop:4,fontWeight:400}}>Cyber Threat Intelligence Platform</div>
+      </div>
+      <form onSubmit={submit}>
+        <div style={{marginBottom:18}}>
+          <label style={{display:"block",fontSize:11,color:"var(--text3)",marginBottom:6,fontWeight:500,textTransform:"uppercase",letterSpacing:"0.5px"}}>Username</label>
+          <input type="text" value={username} onChange={e=>setUsername(e.target.value)} placeholder="admin" style={{width:"100%",padding:"10px 14px"}} autoFocus required/>
+        </div>
+        <div style={{marginBottom:24}}>
+          <label style={{display:"block",fontSize:11,color:"var(--text3)",marginBottom:6,fontWeight:500,textTransform:"uppercase",letterSpacing:"0.5px"}}>Password</label>
+          <input type="password" value={password} onChange={e=>setPassword(e.target.value)} placeholder="\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022" style={{width:"100%",padding:"10px 14px"}} required/>
+        </div>
+        {error&&<div style={{padding:"10px 14px",background:"var(--red-bg)",border:"1px solid rgba(248,81,73,.2)",borderRadius:6,color:"var(--red)",fontSize:12,marginBottom:16}}>{error}</div>}
+        <button type="submit" className="btn btn-primary" style={{width:"100%",justifyContent:"center",padding:11,fontSize:13,fontWeight:600}} disabled={loading}>
+          {loading?<span><span className="spinner" style={{width:14,height:14,marginRight:8}}></span>Authenticating...</span>:"Sign In"}
+        </button>
+      </form>
+      <div style={{textAlign:"center",marginTop:20,fontSize:10,color:"var(--text3)"}}>Secure session with JWT authentication</div>
+    </div>
+  </div>);
+}
+
+function Sidebar({page,setPage,user,onLogout}){
+  const items=[
+    {id:"dashboard",label:"Dashboard",icon:"M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"},
+    {id:"alerts",label:"Live Alerts",icon:"M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341M7 21h10m0 0l5-5m-5 5l-5-5m5 5V11"},
+    {id:"assets",label:"Assets",icon:"M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9M9 21h6"},
+    {id:"cve",label:"CVE Intel",icon:"M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"},
+    {id:"ransomware",label:"Ransomware",icon:"M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"},
+    {id:"darkweb",label:"Dark Web Intel",icon:"M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"},
+    {id:"exposure",label:"Web Exposure",icon:"M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"},
+    {id:"sources",label:"Data Sources",icon:"M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M19 12v7a2 2 0 01-2 2H7a2 2 0 01-2-2v-7"},
+    {id:"settings",label:"Settings",icon:"M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"},
+  ];
+  var iconSvg=function(d,active){
+    return '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="overflow:visible"><path d="'+d+'"/></svg>';
+  };
+  return(<div style={{width:sidebar_w,height:"100vh",background:"var(--bg1)",borderRight:"1px solid var(--border)",display:"flex",flexDirection:"column",flexShrink:0}}>
+    <div style={{padding:"22px 20px 18px",borderBottom:"1px solid var(--border)"}}>
+      <div style={{display:"flex",alignItems:"center",gap:12}}>
+        <div style={{width:40,height:40,borderRadius:10,background:"linear-gradient(135deg,rgba(88,166,255,.15),rgba(88,166,255,.05))",border:"1px solid rgba(88,166,255,.2)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" style={{overflow:"visible"}}><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="#58a6ff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+        </div>
+        <div><div style={{fontSize:22,fontWeight:800,color:"var(--text)",letterSpacing:"-0.5px"}}>RavenCTI</div>
+        <div style={{fontSize:11,color:"var(--text3)",marginTop:1}}>Intelligence Platform</div></div>
+      </div>
+    </div>
+    <nav style={{flex:1,padding:"8px 8px",overflowY:"auto"}}>
+      {items.map(function(it){
+        var active=page===it.id;
+        return(
+          <div key={it.id} onClick={()=>setPage(it.id)} className={"nav-item"+(active?" active":"")}>
+            <div className="nav-icon" dangerouslySetInnerHTML={{__html:iconSvg(it.icon,active)}}></div>
+            <span>{it.label}</span>
+          </div>
+        );
+      })}
+    </nav>
+    <div style={{padding:"14px 16px",borderTop:"1px solid var(--border)",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+      <div style={{display:"flex",alignItems:"center",gap:10}}>
+        <div style={{width:32,height:32,borderRadius:8,background:"var(--bg3)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,fontWeight:600,color:"var(--blue)"}}>{(user?.display_name||user?.username||"A")[0].toUpperCase()}</div>
+        <div><div style={{color:"var(--text)",fontSize:13,fontWeight:500}}>{user?.display_name||user?.username||"User"}</div><div style={{fontSize:10,color:"var(--text3)"}}>{user?.role||"analyst"}</div></div>
+      </div>
+      <button className="btn btn-ghost btn-sm" onClick={onLogout}>Sign Out</button>
+    </div>
+  </div>);
+}
+var sidebar_w="260px";
+
+function DashboardPage({setPage}){
+  const[summary,setSummary]=useState(null);
+  const[alerts,setAlerts]=useState([]);
+  const[actors,setActors]=useState([]);
+  const[loading,setLoading]=useState(true);
+  const[scanLoad,setScanLoad]=useState(false);
+  const load=useCallback(async()=>{try{const[s,al,tl,st,ta]=await Promise.all([A.jget("/api/intelligence/summary"),A.jget("/api/alerts?status=open&limit=8"),A.jget("/api/intelligence/timeline"),A.jget("/api/scan/status"),A.jget("/api/threat-actors")]);setSummary(s);setAlerts(al);setTimeline(tl);setScanStatus(st);setActors(ta||[])}catch(e){console.error(e)}},[]);
+  const[scanStatus,setScanStatus]=useState(null);
+  useEffect(()=>{load();const iv=setInterval(load,30000);return()=>clearInterval(iv)},[load]);
+  const runScan=async(t)=>{setScanLoad(true);await A.jpost("/api/scan/"+t);setTimeout(load,4000);setScanLoad(false)};
+
+  if(!summary)return<Loading/>;
+  const riskScore=Math.min(100,summary.cves.critical*5+summary.cves.kev*8+summary.alerts.critical*10+summary.ransomware.client_matches*15);
+  const riskLevel=riskScore>=75?"CRITICAL":riskScore>=50?"HIGH":riskScore>=30?"ELEVATED":riskScore>=15?"MODERATE":"LOW";
+  const riskColor=riskScore>=75?"var(--red)":riskScore>=50?"var(--amber)":riskScore>=30?"var(--orange)":riskScore>=15?"var(--blue)":"var(--green)";
+  const cveData=summary.cves?[{label:"Critical",value:summary.cves.critical,color:"var(--red)"},{label:"KEV",value:summary.cves.kev,color:"var(--amber)"},{label:"High EPSS",value:summary.cves.high_epss,color:"var(--orange)"},{label:"Total",value:summary.cves.total,sub:true}].filter(d=>!d.sub):[];
+  const alertData=summary.alerts?[{label:"Critical",value:summary.alerts.critical,color:"var(--red)"},{label:"Open",value:summary.alerts.open,color:"var(--amber)"}]:[];
+  const rwData=summary.ransomware?[{label:"Client Hits",value:summary.ransomware.client_matches,color:summary.ransomware.client_matches>0?"var(--red)":"var(--green)"},{label:"Groups",value:summary.ransomware.groups,color:"var(--text2)"}]:[];
+  const expData=summary.exposure?[{label:"Relevant",value:summary.exposure.relevant,color:summary.exposure.relevant>0?"var(--green)":"var(--text2)"},{label:"24h New",value:summary.exposure.recent_24h,color:"var(--blue)"}]:[];
+  const donutSegments=[{label:"Critical",value:summary.cves.critical,color:"var(--red)"},{label:"KEV",value:summary.cves.kev,color:"var(--amber)"},{label:"High EPSS",value:summary.cves.high_epss,color:"var(--orange)"},{label:"Other",value:Math.max(0,summary.cves.total-summary.cves.critical-summary.cves.kev-summary.cves.high_epss),color:"var(--bg3)"}];
+
+  return(<div className="fade-in" style={{overflowY:"auto",height:"100%",padding:24}}>
+    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20}}>
+      <div><div className="section-title">Operations Dashboard</div><div className="section-sub">Real-time threat overview and intelligence summary</div></div>
+      <div style={{display:"flex",gap:8,alignItems:"center"}}>
+        <div style={{display:"flex",alignItems:"center",gap:6,marginRight:8}}><div className="dot dot-active"></div><span style={{fontSize:11,color:"var(--green)",fontWeight:500}}>LIVE</span></div>
+        <button className="btn btn-primary btn-sm" disabled={scanLoad} onClick={()=>runScan("cve")}>Scan CVEs</button>
+        <button className="btn btn-sm" style={{background:"var(--amber-bg)",color:"var(--amber)",border:"1px solid rgba(210,153,34,.25)"}} disabled={scanLoad} onClick={()=>runScan("ransomware")}>Ransomware</button>
+        <button className="btn btn-ghost btn-sm" disabled={scanLoad} onClick={()=>runScan("exposure")}>Exposure</button>
+      </div>
+    </div>
+    <div style={{display:"grid",gridTemplateColumns:"220px 1fr 1fr",gap:16,marginBottom:20}}>
+      <div style={{background:"var(--bg1)",border:"1px solid var(--border)",borderRadius:10,padding:"24px 16px",textAlign:"center",position:"relative",overflow:"hidden"}}>
+        <div style={{position:"absolute",top:0,left:0,right:0,height:"3px",background:riskColor}}></div>
+        <div style={{fontSize:10,color:"var(--text3)",fontWeight:600,textTransform:"uppercase",letterSpacing:"0.5px"}}>Global Risk</div>
+        <div style={{fontSize:52,fontWeight:800,color:riskColor,fontFamily:"var(--mono)",lineHeight:1,marginTop:8,animation:"threatPulse 3s ease-in-out infinite"}}>{riskScore}</div>
+        <div style={{marginTop:10}}><span className={"badge "+(riskLevel==="CRITICAL"?"b-critical":riskLevel==="HIGH"?"b-high":riskLevel==="ELEVATED"?"b-medium":"b-low")}>{riskLevel}</span></div>
+        <div style={{fontSize:10,color:"var(--text3)",marginTop:8}}>Composite threat score</div>
+      </div>
+      <div style={{animation:"fadeScale .5s ease"}}>
+        <div style={{fontSize:12,fontWeight:600,color:"var(--text2)",marginBottom:8}}>Vulnerability Breakdown</div>
+        <DonutChart segments={donutSegments} size={110} strokeWidth={12}/>
+      </div>
+      <div>
+        <div style={{fontSize:12,fontWeight:600,color:"var(--text2)",marginBottom:8}}>Threat Landscape</div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+          <StatCard label="Alerts" value={summary.alerts.open} color="var(--amber)" sub={summary.alerts.critical+" critical"}/>
+          <StatCard label="Exposure" value={summary.exposure.relevant} color="var(--green)" sub={summary.exposure.open+" total"}/>
+          <StatCard label="Ransomware" value={summary.ransomware.client_matches} color={summary.ransomware.client_matches>0?"var(--red)":"var(--green)"} sub={summary.ransomware.groups+" groups tracked"}/>
+          <StatCard label="IOCs" value={summary.iocs.total} color="var(--text)" sub={summary.iocs.recent_24h+" new"}/>
+        </div>
+      </div>
+    </div>
+    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginBottom:20}}>
+      <div className="card"><div className="card-head"><h3>Active Alerts</h3><button className="btn btn-ghost btn-sm" onClick={()=>setPage("alerts")}>View All \u2192</button></div>
+        <div style={{maxHeight:220,overflowY:"auto"}}>
+          {alerts.length===0?<Empty text="No open alerts"/>:alerts.map(a=>(<div key={a.id} style={{padding:"10px 20px",borderBottom:"1px solid rgba(48,54,61,.5)",display:"flex",alignItems:"center",gap:12}}>
+            <SevBadge severity={a.severity}/><div style={{flex:1,minWidth:0}}><div style={{fontSize:12,fontWeight:500,color:"var(--text)",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{a.title}</div><div style={{fontSize:10,color:"var(--text3)",marginTop:2}}>{a.alert_type} \u00b7 {fmtDate(a.created_at)}</div></div></div>))}
+        </div>
+      </div>
+      <div className="card"><div className="card-head"><h3>Tracked Threat Actors</h3><button className="btn btn-ghost btn-sm" onClick={()=>setPage("assets")}>Assets \u2192</button></div>
+        <div style={{maxHeight:220,overflowY:"auto"}}>
+          {actors.length===0?<Empty text="No threat actors"/>:actors.slice(0,8).map(function(a,i){var ttps=typeof a.ttps==="string"?JSON.parse(a.ttps||"[]"):a.ttps||[];return(<div key={a.id||i} style={{padding:"8px 20px",borderBottom:"1px solid rgba(48,54,61,.5)",display:"flex",alignItems:"center",gap:10}}>
+            <span className="badge" style={{background:a.nation==="Russia"?"rgba(239,68,68,.15)":a.nation==="North Korea"?"rgba(168,85,247,.15)":a.nation==="China"?"rgba(234,179,8,.15)":"rgba(148,163,184,.15)",color:a.nation==="Russia"?"var(--red)":a.nation==="North Korea"?"var(--purple)":a.nation==="China"?"var(--amber)":"var(--text2)",fontSize:10,padding:"2px 8px",minWidth:60,textAlign:"center"}}>{a.nation||"Unknown"}</span>
+            <div style={{flex:1,minWidth:0}}><div style={{fontSize:12,fontWeight:600,color:"var(--text)"}}>{a.name}{a.mitre_id&&<span style={{fontSize:9,color:"var(--text3)",marginLeft:6,fontWeight:400}}>{a.mitre_id}</span>}</div><div style={{fontSize:10,color:"var(--text3)",marginTop:1}}>{(a.description||"").substring(0,70)}</div></div>
+            <div style={{display:"flex",gap:2,flexWrap:"wrap",maxWidth:120,justifyContent:"flex-end"}}>{ttps.slice(0,3).map(function(t,j){return(<span key={j} style={{fontSize:8,background:"rgba(239,68,68,.08)",color:"var(--red)",padding:"1px 4px",borderRadius:3}}>{t}</span>)})}{ttps.length>3&&<span style={{fontSize:8,color:"var(--text3)"}}>+{ttps.length-3}</span>}</div>
+          </div>)})}
+        </div>
+      </div>
+    </div>
+    {scanStatus&&<div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12}}>
+      {[{l:"CVE Database",v:scanStatus.cve.total,c:"var(--blue)"},{l:"Ransomware Groups",v:scanStatus.ransomware.incidents,c:"var(--orange)"},{l:"Dark Intel",v:scanStatus.exposure.open,c:"var(--cyan)"},{l:"Open Alerts",v:scanStatus.alerts.open,c:"var(--amber)"}].map(function(r,i){return(
+        <div key={i} className="stat-card" style={{"--accent-color":r.c,animation:"slideUp .4s ease "+(i*60)+"ms both"}}>
+          <div style={{fontSize:10,color:"var(--text3)"}}>{r.l}</div>
+          <div style={{fontSize:18,fontWeight:600,color:r.c,fontFamily:"var(--mono)",marginTop:4}}>{fmtNum(r.v)}</div>
+        </div>
+      )})}
+    </div>}
+  </div>);
+}
+
+function AlertsPage(){
+  const[alerts,setAlerts]=useState([]);
+  const[filter,setFilter]=useState("open");
+  const[loading,setLoading]=useState(true);
+  const load=async()=>{setLoading(true);const d=await A.jget("/api/alerts?status="+filter);setAlerts(d);setLoading(false)};
+  useEffect(()=>{load()},[filter]);
+  const updateStatus=async(id,status)=>{await A.jpatch("/api/alerts/"+id,{status});load()};
+  return(<div className="fade-in" style={{overflowY:"auto",height:"100%",padding:24}}>
+    <div style={{marginBottom:20}}><div className="section-title">Live Alerts</div><div className="section-sub">Threat alerts and security notifications</div></div>
+    <div style={{display:"flex",gap:6,marginBottom:16,flexWrap:"wrap"}}>
+      {[["open","Open"],["all","All"],["acknowledged","Acknowledged"],["resolved","Resolved"],["false_positive","False Positive"]].map(([f,l])=>(<button key={f} className={"btn btn-sm "+(filter===f?"btn-primary":"btn-ghost")} onClick={()=>setFilter(f)}>{l}</button>))}
+    </div>
+    {loading?<Loading/>:<div className="card"><table><thead><tr><th>Severity</th><th>Alert</th><th>Type</th><th>Time</th><th>Actions</th></tr></thead><tbody>
+      {alerts.length===0?<tr><td colSpan={5}><Empty/></td></tr>:
+      alerts.map(a=>(<tr key={a.id}><td><SevBadge severity={a.severity}/></td><td><div style={{fontWeight:500,maxWidth:500,color:"var(--text)"}}>{a.title}</div>{a.description&&<div className="explanation" style={{marginTop:4}}>{a.description.substring(0,150)}</div>}</td><td><span className="badge b-info mono">{a.alert_type}</span></td><td className="mono" style={{fontSize:11,color:"var(--text3)",whiteSpace:"nowrap"}}>{fmtDate(a.created_at)}</td><td><div style={{display:"flex",gap:4}}>{a.status==="open"&&<><button className="btn btn-ghost btn-sm" onClick={()=>updateStatus(a.id,"acknowledged")}>Ack</button><button className="btn btn-ghost btn-sm" onClick={()=>updateStatus(a.id,"resolved")}>Resolve</button><button className="btn btn-sm" style={{color:"var(--text3)"}} onClick={()=>updateStatus(a.id,"false_positive")}>FP</button></>}<span className={"badge "+(a.status==="open"?"b-info":a.status==="resolved"?"b-green":a.status==="false_positive"?"b-low":"b-medium")}>{a.status}</span></div></td></tr>))}
+    </tbody></table></div>}
+  </div>);
+}
+
+function CVEPage(){
+  const[cves,setCves]=useState([]);
+  const[loading,setLoading]=useState(true);
+  const[filter,setFilter]=useState("all");
+  const[scanLoad,setScanLoad]=useState(false);
+  const load=async()=>{setLoading(true);const c=await A.jget("/api/cves");setCves(c||[]);setLoading(false)};
+  useEffect(()=>{load()},[]);
+  const filtered=filter==="all"?cves:filter==="kev"?cves.filter(c=>c.in_cisa_kev):cves.filter(c=>c.risk_tier===filter);
+  const tierData=[{label:"Critical",value:cves.filter(c=>c.risk_tier==="critical").length,color:"var(--red)"},{label:"High",value:cves.filter(c=>c.risk_tier==="high").length,color:"var(--amber)"},{label:"Medium",value:cves.filter(c=>c.risk_tier==="medium").length,color:"var(--orange)"},{label:"Low",value:cves.filter(c=>c.risk_tier==="low").length,color:"var(--blue)"}];
+  return(<div className="fade-in" style={{overflowY:"auto",height:"100%",padding:24}}>
+    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20}}>
+      <div><div className="section-title">CVE Intelligence</div><div className="section-sub">Vulnerability tracking with CVSS, KEV, and EPSS scoring</div></div>
+      <button className="btn btn-primary btn-sm" disabled={scanLoad} onClick={async()=>{setScanLoad(true);await A.jpost("/api/scan/cve");setTimeout(load,5000);setScanLoad(false)}}>{scanLoad?"Scanning...":"Scan CVEs"}</button>
+    </div>
+    <div style={{display:"flex",gap:12,marginBottom:16}}>
+      <div style={{flex:1}}><BarChart data={tierData} height={70}/></div>
+      <div style={{display:"flex",gap:6,flexShrink:0}}>
+        {[["all","All ("+cves.length+")"],["critical","Critical"],["high","High"],["kev","KEV"]].map(([k,l])=>(<button key={k} className={"btn btn-sm "+(filter===k?"btn-primary":"btn-ghost")} onClick={()=>setFilter(k)}>{l}</button>))}
+      </div>
+    </div>
+    {loading?<Loading/>:<div className="card" style={{overflowX:"auto"}}><table><thead><tr><th>CVE ID</th><th>Product</th><th>CVSS</th><th>EPSS</th><th>KEV</th><th>Risk</th><th>Note</th></tr></thead><tbody>
+      {filtered.length===0?<tr><td colSpan={8}><Empty text="No CVEs matching filter"/></td></tr>:
+      filtered.slice(0,100).map(c=>(<tr key={c.id}><td><a href={c.url||"https://nvd.nist.gov/vuln/detail/"+c.cve_id} target="_blank" rel="noopener noreferrer" style={{color:"var(--blue)",textDecoration:"none",fontWeight:500}} className="mono">{c.cve_id}</a></td><td style={{color:"var(--text2)",maxWidth:140,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{c.product||"-"}</td><td className="mono" style={{fontWeight:600,color:c.cvss_score>=9?"var(--red)":c.cvss_score>=7?"var(--amber)":"var(--text)"}}>{c.cvss_score||"-"}</td><td className="mono" style={{color:(c.epss_score||0)>=0.5?"var(--red)":"var(--text3)"}}>{c.epss_score!=null?(c.epss_score*100).toFixed(1)+"%":"-"}</td><td>{c.in_cisa_kev?<span className="badge b-critical">KEV</span>:"-"}</td><td><SevBadge severity={c.risk_tier}/><span className="mono" style={{fontSize:10,color:"var(--text3)",marginLeft:4}}>{c.risk_score||"0"}</span></td><td style={{maxWidth:180,fontSize:11,color:"var(--text3)",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{c.ai_note||"-"}</td></tr>))}
+    </tbody></table></div>}
+  </div>);
+}
+
+function RansomwarePage(){
+  const[matched,setMatched]=useState([]);
+  const[loading,setLoading]=useState(true);
+  const load=async()=>{setLoading(true);const d=await A.jget("/api/ransomware/matched");setMatched(d||[]);setLoading(false)};
+  useEffect(()=>{load()},[]);
+  return(<div className="fade-in" style={{overflowY:"auto",height:"100%",padding:24}}>
+    <div style={{marginBottom:20}}><div className="section-title">Ransomware Intelligence</div><div className="section-sub">Client-matched ransomware incidents only \u2014 correlated against your assets</div></div>
+    {loading?<Loading/>:matched.length===0?<div className="card"><div className="card-body"><Empty text="No client-matched ransomware incidents. Add clients in Assets to enable matching."/></div></div>
+    :<div className="card" style={{overflowX:"auto"}}><table><thead><tr><th>Victim</th><th>Group</th><th>Country</th><th>Match Reason</th><th>Confidence</th><th>Date</th></tr></thead><tbody>
+      {matched.map(m=>(<tr key={m.id} style={{background:"var(--red-bg)"}}><td style={{fontWeight:600,color:"var(--text)",fontSize:13}}>{m.victim_name}</td><td><span className="badge b-purple">{m.ransomware_group}</span></td><td style={{color:"var(--text2)"}}>{m.country||"-"}</td><td><div className="explanation">{m.match_reason||"-"}</div></td><td className="mono" style={{fontSize:11,color:"var(--amber)"}}>{(m.match_confidence||0).toFixed(0)}%</td><td className="mono" style={{fontSize:11,color:"var(--text3)",whiteSpace:"nowrap"}}>{fmtDate(m.discovered_date)}</td></tr>))}
+    </tbody></table></div>}
+  </div>);
+}
+
+function DarkWebPage(){
+  const[findings,setFindings]=useState([]);
+  const[stats,setStats]=useState(null);
+  const[loading,setLoading]=useState(true);
+  const[sourceFilter,setSourceFilter]=useState("all");
+  const[relFilter,setRelFilter]=useState("all");
+  const[scanLoad,setScanLoad]=useState(false);
+  const load=async()=>{setLoading(true);const[f,s]=await Promise.all([A.jget("/api/exposure?limit=300&status=open"),A.jget("/api/exposure/stats")]);setFindings((f||[]).filter(function(x){return["darkforums","patched","cracked"].includes(x.source)}));setStats(s);setLoading(false)};
+  useEffect(()=>{load()},[]);
+  var filtered=sourceFilter==="all"?findings:findings.filter(f=>f.source===sourceFilter);
+  if(relFilter==="1")filtered=filtered.filter(f=>f.is_relevant===1);
+  else if(relFilter==="0")filtered=filtered.filter(f=>f.is_relevant!==1);
+  const dwSources=[...new Set(findings.map(f=>f.source))].filter(s=>["darkforums","patched","cracked"].includes(s));
+  const runScan=async(src)=>{setScanLoad(true);await A.jpost("/api/collect/"+src);setTimeout(load,5000);setScanLoad(false)};
+
+  return(<div className="fade-in" style={{overflowY:"auto",height:"100%",padding:24}}>
+    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20}}>
+      <div><div className="section-title">Dark Web Intelligence</div><div className="section-sub">Monitoring darkforums.su, patched.to, cracked.ax for entity mentions</div></div>
+      <div style={{display:"flex",gap:6}}>
+        {["darkforums","patched","cracked"].map(s=>(<button key={s} className="btn btn-ghost btn-sm" disabled={scanLoad} onClick={()=>runScan(s)}>{s}</button>))}
+      </div>
+    </div>
+    {stats&&<div style={{display:"flex",gap:12,marginBottom:16,flexWrap:"wrap"}}>
+      <StatCard label="Relevant" value={stats.darkweb_relevant||0} color="var(--green)"/><StatCard label="Total Findings" value={stats.darkweb_total||0} color="var(--cyan)"/><StatCard label="Last 24h" value={stats.recent_24h} color="var(--blue)"/>
+    </div>}
+    <div style={{display:"flex",gap:6,marginBottom:12,flexWrap:"wrap"}}>
+      <button className={"btn btn-sm "+(relFilter==="all"?"btn-primary":"btn-ghost")} onClick={()=>setRelFilter("all")}>All ({findings.length})</button>
+      <button className={"btn btn-sm "+(relFilter==="1"?"btn-primary":"btn-ghost")} style={relFilter==="1"?{background:"var(--green)",borderColor:"var(--green)"}:{}} onClick={()=>setRelFilter("1")}>Relevant ({findings.filter(f=>f.is_relevant===1).length})</button>
+      <button className={"btn btn-sm "+(relFilter==="0"?"btn-primary":"btn-ghost")} onClick={()=>setRelFilter("0")}>Other ({findings.filter(f=>f.is_relevant!==1).length})</button>
+    </div>
+    {dwSources.length>0&&<div style={{display:"flex",gap:6,marginBottom:12,flexWrap:"wrap"}}>
+      {dwSources.map(s=>(<button key={s} className={"btn btn-sm "+(sourceFilter===s?"btn-primary":"btn-ghost")} onClick={()=>setSourceFilter(s)}>{s} ({findings.filter(f=>f.source===s).length})</button>))}
+    </div>}
+    {loading?<Loading/>:<div className="card" style={{overflowX:"auto"}}><table><thead><tr><th></th><th>Severity</th><th>Finding</th><th>Source</th><th>Author</th><th>Date</th></tr></thead><tbody>
+      {filtered.length===0?<tr><td colSpan={6}><Empty text="No dark web findings"/></td></tr>:
+      filtered.map(f=>(<tr key={f.id} style={f.is_relevant===1?{background:"rgba(16,185,129,0.06)"}:{}}><td>{f.is_relevant===1?<span style={{display:"inline-block",width:8,height:8,borderRadius:"50%",background:"var(--green)",boxShadow:"0 0 6px var(--green)"}}/>:null}</td><td><SevBadge severity={f.severity}/></td><td><div style={{fontWeight:f.is_relevant===1?600:400,maxWidth:420,color:f.is_relevant===1?"var(--green)":"var(--text)",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{f.title}</div>{f.match_reason&&<div style={{fontSize:10,color:"var(--green)",background:"rgba(16,185,129,0.1)",padding:"2px 6px",borderRadius:4,marginTop:3,display:"inline-block",maxWidth:420}}>{f.match_reason}</div>}{!f.match_reason&&f.description&&<div className="explanation">{f.description.substring(0,120)}</div>}</td><td><span className="badge b-info">{f.source}</span></td><td style={{color:"var(--text2)",fontSize:11}}>{f.author||"-"}</td><td className="mono" style={{fontSize:10,color:"var(--text3)",whiteSpace:"nowrap"}}>{fmtDate(f.created_at)}</td></tr>))}
+    </tbody></table></div>}
+  </div>);
+}
+
+function ExposurePage(){
+  const[findings,setFindings]=useState([]);
+  const[stats,setStats]=useState(null);
+  const[loading,setLoading]=useState(true);
+  const[sourceFilter,setSourceFilter]=useState("all");
+  const[scanLoad,setScanLoad]=useState(false);
+  const load=async()=>{setLoading(true);const[f,s]=await Promise.all([A.jget("/api/exposure?limit=300&status=open"),A.jget("/api/exposure/stats")]);var all=f||[];setFindings(all.filter(function(x){return["github","reddit","telegram","twitter","paste","crtsh","dork"].indexOf(x.source)>=0}));setStats(s);setLoading(false)};
+  useEffect(()=>{load()},[]);
+  const filtered=sourceFilter==="all"?findings:findings.filter(f=>f.source===sourceFilter);
+  const webSources=[...new Set(findings.map(f=>f.source))].filter(s=>["github","reddit","telegram","twitter","paste","crtsh","dork"].includes(s));
+  const runScan=async(src)=>{setScanLoad(true);await A.jpost("/api/exposure/collect/"+src);setTimeout(load,5000);setScanLoad(false)};
+
+  return(<div className="fade-in" style={{overflowY:"auto",height:"100%",padding:24}}>
+    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20}}>
+      <div><div className="section-title">Web Exposure</div><div className="section-sub">OSINT monitoring across GitHub, Reddit, Telegram, X, and other open sources</div></div>
+      <div style={{display:"flex",gap:6}}>
+        {["github","reddit","telegram","twitter"].map(s=>(<button key={s} className="btn btn-ghost btn-sm" disabled={scanLoad} onClick={()=>runScan(s)}>{s}</button>))}
+      </div>
+    </div>
+    {stats&&<div style={{display:"flex",gap:12,marginBottom:16,flexWrap:"wrap"}}>
+      <StatCard label="Total Findings" value={stats.total} color="var(--cyan)"/><StatCard label="Open" value={stats.open} color="var(--blue)"/><StatCard label="Critical" value={stats.critical} color="var(--red)"/><StatCard label="Last 24h" value={stats.recent_24h} color="var(--amber)"/>
+    </div>}
+    {webSources.length>0&&<div style={{display:"flex",gap:6,marginBottom:12,flexWrap:"wrap"}}>
+      <button className={"btn btn-sm "+(sourceFilter==="all"?"btn-primary":"btn-ghost")} onClick={()=>setSourceFilter("all")}>All ({findings.filter(f=>webSources.includes(f.source)).length})</button>
+      {webSources.map(s=>(<button key={s} className={"btn btn-sm "+(sourceFilter===s?"btn-primary":"btn-ghost")} onClick={()=>setSourceFilter(s)}>{s} ({findings.filter(f=>f.source===s).length})</button>))}
+    </div>}
+    {loading?<Loading/>:<div className="card" style={{overflowX:"auto"}}><table><thead><tr><th>Severity</th><th>Finding</th><th>Source</th><th>Type</th><th>Author</th><th>Date</th></tr></thead><tbody>
+      {filtered.length===0?<tr><td colSpan={6}><Empty text="No web exposure findings"/></td></tr>:
+      filtered.map(f=>(<tr key={f.id}><td><SevBadge severity={f.severity}/></td><td><div style={{fontWeight:500,maxWidth:400,color:"var(--text)"}}>{f.title}</div>{f.description&&<div className="explanation">{f.description.substring(0,120)}</div>}</td><td><span className="badge b-info">{f.source}</span></td><td style={{color:"var(--text3)"}}>{f.finding_type||"-"}</td><td style={{color:"var(--text2)"}}>{f.author||"-"}</td><td className="mono" style={{fontSize:10,color:"var(--text3)",whiteSpace:"nowrap"}}>{fmtDate(f.created_at)}</td></tr>))}
+    </tbody></table></div>}
+  </div>);
+}
+
+function SourcesPage(){
+  const[sources,setSources]=useState([]);
+  const[jobs,setJobs]=useState([]);
+  const[loading,setLoading]=useState(true);
+  useEffect(()=>{(async()=>{const[s,j]=await Promise.all([A.jget("/api/sources/health"),A.jget("/api/jobs")]);setSources(s||[]);setJobs((j||[]).slice(0,30));setLoading(false)})()},[]);
+  return(<div className="fade-in" style={{overflowY:"auto",height:"100%",padding:24}}>
+    <div style={{marginBottom:20}}><div className="section-title">Data Sources</div><div className="section-sub">Collector health monitoring and job execution history</div></div>
+    {loading?<Loading/>:<>
+    <div className="card" style={{marginBottom:16}}><div className="card-head"><h3>Source Health</h3></div><table><thead><tr><th>Status</th><th>Source</th><th>Last Success</th><th>Items</th><th>Errors</th></tr></thead><tbody>{sources.map(s=>(<tr key={s.id}><td><StatusDot status={s.status}/></td><td style={{fontWeight:500,color:"var(--text)"}}>{s.source_name}</td><td className="mono" style={{fontSize:11,color:"var(--text3)",whiteSpace:"nowrap"}}>{fmtDate(s.last_success)}</td><td className="mono">{s.items_last_run}</td><td style={{color:s.error_count>0?"var(--red)":"var(--text3)"}} className="mono">{s.error_count}</td></tr>))}</tbody></table></div>
+    <div className="card"><div className="card-head"><h3>Recent Jobs</h3></div><table><thead><tr><th>Job</th><th>Status</th><th>Started</th><th>Items</th><th>Error</th></tr></thead><tbody>{jobs.map(j=>(<tr key={j.id}><td className="mono" style={{fontWeight:500}}>{j.job_type}</td><td><span className={"badge "+(j.status==="completed"?"b-green":j.status==="failed"?"b-critical":"b-info")}>{j.status}</span></td><td className="mono" style={{fontSize:11,color:"var(--text3)",whiteSpace:"nowrap"}}>{fmtDate(j.started_at)}</td><td className="mono">{j.items_collected}</td><td style={{color:"var(--red)",fontSize:11,maxWidth:200,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{j.error_message||"-"}</td></tr>))}</tbody></table></div>
+    </>}
+  </div>);
+}
+
+function SettingsPage({user}){
+  const[users,setUsers]=useState([]);
+  const isAdmin=user?.role==="admin";
+  useEffect(()=>{if(isAdmin)A.jget("/api/auth/users").then(setUsers).catch(()=>{})},[isAdmin]);
+  return(<div className="fade-in" style={{overflowY:"auto",height:"100%",padding:24}}>
+    <div style={{marginBottom:20}}><div className="section-title">Settings</div><div className="section-sub">System configuration and management</div></div>
+    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
+      <div className="card"><div className="card-head"><h3>System Info</h3></div><div className="card-body"><div style={{display:"grid",gap:12}}>
+        {[{l:"Version",v:"v8.1"},{l:"Authentication",v:"JWT + bcrypt"},{l:"Database",v:"SQLite"},{l:"Scheduler",v:"APScheduler"},{l:"User",v:user?.display_name||"-"},{l:"Role",v:user?.role||"-"}].map((r,i)=>(<div key={i} style={{display:"flex",justifyContent:"space-between",paddingBottom:8,borderBottom:"1px solid var(--border)"}}><span style={{color:"var(--text3)",fontSize:12}}>{r.l}</span><span className="mono" style={{fontSize:12}}>{r.v}</span></div>))}
+      </div></div></div>
+      <div className="card"><div className="card-head"><h3>Quick Actions</h3></div><div className="card-body" style={{display:"flex",flexDirection:"column",gap:8}}>
+        <button className="btn btn-primary" style={{justifyContent:"center",padding:10}} onClick={async()=>{await A.jpost("/api/scan/cve");alert("CVE scan triggered")}}>Full CVE Scan</button>
+        <button className="btn" style={{justifyContent:"center",padding:10,background:"var(--amber-bg)",color:"var(--amber)",border:"1px solid rgba(210,153,34,.25)"}} onClick={async()=>{await A.jpost("/api/scan/ransomware");alert("Ransomware scan triggered")}}>Ransomware Scan</button>
+        <button className="btn btn-ghost" style={{justifyContent:"center",padding:10}} onClick={async()=>{await A.jpost("/api/collect/all");alert("All collectors triggered")}}>Run All Collectors</button>
+        <button className="btn btn-danger" style={{justifyContent:"center",padding:10}} onClick={async()=>{if(confirm("Reset ALL intelligence data?")){await A.jpost("/api/reset");window.location.reload()}}}>Reset Intelligence</button>
+      </div></div>
+    </div>
+    {isAdmin&&users.length>0&&<div className="card" style={{marginTop:16}}><div className="card-head"><h3>Users</h3><span className="badge b-info">{users.length}</span></div><table><thead><tr><th>Username</th><th>Name</th><th>Role</th><th>Active</th><th>Last Login</th></tr></thead><tbody>{users.map(u=>(<tr key={u.id}><td className="mono" style={{fontWeight:500}}>{u.username}</td><td>{u.display_name||"-"}</td><td><span className={"badge "+(u.role==="admin"?"b-cyan":"b-info")}>{u.role}</span></td><td><span className={"badge "+(u.active?"b-green":"b-critical")}>{u.active?"Active":"Disabled"}</span></td><td className="mono" style={{fontSize:11,color:"var(--text3)"}}>{fmtDate(u.last_login)}</td></tr>))}</tbody></table></div>}
+  </div>);
+}
+
+function App(){
+  const[user,setUser]=useState(null);
+  const[authChecked,setAuthChecked]=useState(false);
+  const[page,setPage]=useState("dashboard");
+  useEffect(()=>{
+    window.__logout=()=>{A.token="";localStorage.removeItem("raven_token");setUser(null);setAuthChecked(true)};
+    const check=async()=>{if(!A.token){setAuthChecked(true);return}try{const r=await A.jget("/api/auth/me");if(r.error){setAuthChecked(true);return}setUser(r);setAuthChecked(true)}catch(e){setAuthChecked(true)}};
+    check();
+  },[]);
+  if(!authChecked)return(<div style={{height:"100vh",display:"flex",alignItems:"center",justifyContent:"center"}}><span className="spinner" style={{width:24,height:24}}></span></div>);
+  if(!user)return<LoginPage onLogin={u=>setUser(u)}/>;
+  return(<div style={{display:"flex",height:"100vh"}}>
+    <Sidebar page={page} setPage={setPage} user={user} onLogout={()=>{A.token="";localStorage.removeItem("raven_token");setUser(null)}}/>
+    <main style={{flex:1,overflow:"hidden",background:"var(--bg0)"}}>
+      {page==="dashboard"&&<DashboardPage setPage={setPage}/>}
+      {page==="alerts"&&<AlertsPage/>}
+      {page==="assets"&&<AssetsPage/>}
+      {page==="cve"&&<CVEPage/>}
+      {page==="ransomware"&&<RansomwarePage/>}
+      {page==="darkweb"&&<DarkWebPage/>}
+      {page==="exposure"&&<ExposurePage/>}
+      {page==="sources"&&<SourcesPage/>}
+      {page==="settings"&&<SettingsPage user={user}/>}
+    </main>
+  </div>);
+}
+
+function AssetsPage(){
+  const[products,setProducts]=useState([]);
+  const[clients,setClients]=useState([]);
+  const[tab,setTab]=useState("products");
+  const[loading,setLoading]=useState(true);
+  const[showAdd,setShowAdd]=useState(false);
+  const[form,setForm]=useState({});
+  const load=async()=>{setLoading(true);const[p,c]=await Promise.all([A.jget("/api/products"),A.jget("/api/clients")]);setProducts(p||[]);setClients(c||[]);setLoading(false)};
+  useEffect(()=>{load()},[]);
+  const addProduct=async()=>{await A.jpost("/api/products",form);setShowAdd(false);setForm({});load()};
+  const addClient=async()=>{await A.jpost("/api/clients",form);setShowAdd(false);setForm({});load()};
+  const del=(t,id)=>async()=>{await A.del("/api/"+t+"/"+id);load()};
+  return(<div className="fade-in" style={{overflowY:"auto",height:"100%",padding:24}}>
+    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20}}>
+      <div><div className="section-title">Assets</div><div className="section-sub">Managed products and client companies</div></div>
+      <div style={{display:"flex",gap:8}}>
+        <button className={"btn btn-sm "+(tab==="products"?"btn-primary":"btn-ghost")} onClick={()=>setTab("products")}>Products ({products.length})</button>
+        <button className={"btn btn-sm "+(tab==="clients"?"btn-primary":"btn-ghost")} onClick={()=>setTab("clients")}>Clients ({clients.length})</button>
+        <button className="btn btn-primary btn-sm" onClick={()=>setShowAdd(true)}>+ Add</button>
+      </div>
+    </div>
+    {showAdd&&<div className="card" style={{marginBottom:16,padding:20}}><div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"flex-end"}}>
+      {tab==="products"?<><input placeholder="Product Name" value={form.product_name||""} onChange={e=>setForm({...form,product_name:e.target.value})} style={{width:160}}/><input placeholder="Vendor" value={form.vendor||""} onChange={e=>setForm({...form,vendor:e.target.value})} style={{width:120}}/><input placeholder="CPE Prefix" value={form.cpe_prefix||""} onChange={e=>setForm({...form,cpe_prefix:e.target.value})} style={{width:180}}/><select value={form.criticality||"medium"} onChange={e=>setForm({...form,criticality:e.target.value})}><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option><option value="critical">Critical</option></select></>:<><input placeholder="Company Name" value={form.company_name||""} onChange={e=>setForm({...form,company_name:e.target.value})} style={{width:200}}/><select value={form.criticality||"medium"} onChange={e=>setForm({...form,criticality:e.target.value})}><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option><option value="critical">Critical</option></select><input placeholder="Sector" value={form.sector||""} onChange={e=>setForm({...form,sector:e.target.value})} style={{width:120}}/><input placeholder="Country" value={form.country_code||""} onChange={e=>setForm({...form,country_code:e.target.value})} style={{width:80}}/></>}
+      <button className="btn btn-primary btn-sm" onClick={tab==="products"?addProduct:addClient}>Save</button>
+      <button className="btn btn-ghost btn-sm" onClick={()=>{setShowAdd(false);setForm({})}}>Cancel</button>
+    </div></div>}
+    {loading?<Loading/>:<div className="card" style={{overflowX:"auto"}}><table><thead><tr>{tab==="products"?<><th>Product</th><th>Vendor</th><th>CPE</th><th>Criticality</th><th></th></>:<><th>Company</th><th>Criticality</th><th>Sector</th><th>Country</th><th></th></>}</tr></thead><tbody>
+      {tab==="products"?products.map(p=>(<tr key={p.id}><td style={{fontWeight:500,color:"var(--text)"}}>{p.product_name}</td><td style={{color:"var(--text2)"}}>{p.vendor||"-"}</td><td className="mono" style={{fontSize:10,color:"var(--text3)",maxWidth:200,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{p.cpe_prefix||"-"}</td><td><SevBadge severity={p.criticality}/></td><td><button className="btn btn-danger btn-sm" onClick={()=>del("products",p.id)}>Del</button></td></tr>)):clients.map(c=>(<tr key={c.id}><td style={{fontWeight:500,color:"var(--text)"}}>{c.company_name}</td><td><SevBadge severity={c.criticality}/></td><td style={{color:"var(--text2)"}}>{c.sector||"-"}</td><td>{c.country_code||"-"}</td><td><button className="btn btn-danger btn-sm" onClick={()=>del("clients",c.id)}>Del</button></td></tr>))}
+    </tbody></table></div>}
+  </div>);
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+</body>
+</html>
