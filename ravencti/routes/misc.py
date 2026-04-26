@@ -245,4 +245,10 @@ def api_test():
 
 @bp.route("/")
 def serve_dashboard():
-    return send_from_directory(str(BASE_DIR), "dashboard.html")
+    import os, time
+    filepath = os.path.join(str(BASE_DIR), "dashboard.html")
+    resp = send_from_directory(str(BASE_DIR), "dashboard.html")
+    resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate"
+    resp.headers["Pragma"] = "no-cache"
+    resp.headers["Expires"] = "0"
+    return resp

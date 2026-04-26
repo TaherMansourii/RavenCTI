@@ -90,6 +90,9 @@ def add_client():
         return jsonify({"success": True})
     except (sqlite3.IntegrityError, PgUniqueViolation):
         return jsonify({"error": "Client already exists"}), 409
+    finally:
+        from ravencti.services.matching import rematch_ransomware
+        rematch_ransomware()
 
 
 @bp.route("/api/clients/<int:cid>", methods=["DELETE"])
@@ -178,8 +181,13 @@ def list_ransomware():
 def list_matched_ransomware():
     with get_db() as conn:
         rows = conn.execute(
-            "SELECT * FROM ransomware_incidents WHERE is_client_match=1 "
-            "ORDER BY created_at DESC LIMIT 100"
+            "SELECT ri.* FROM ransomware_incidents ri "
+            "INNER JOIN ("
+            "  SELECT victim_name, ransomware_group, MAX(id) AS max_id "
+            "  FROM ransomware_incidents WHERE is_client_match=1 "
+            "  GROUP BY victim_name, ransomware_group"
+            ") latest ON ri.id = latest.max_id "
+            "ORDER BY ri.created_at DESC LIMIT 100"
         ).fetchall()
     results = []
     for r in rows:
@@ -205,6 +213,16 @@ def _build_match_reason(incident):
     if confidence:
         reasons.append(f"Confidence: {confidence:.0%}")
     return "; ".join(reasons) if reasons else "Matched via client name similarity"
+
+
+@bp.route("/api/ransomware/rematch", methods=["POST"])
+@require_key
+def rematch_ransomware():
+    from ravencti.services.matching import rematch_ransomware as _rematch
+    n = _rematch()
+    from ravencti.services.alerts import run_alerts
+    run_alerts()
+    return jsonify({"matched": n})
 
 
 @bp.route("/api/ransomware/stats")

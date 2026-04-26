@@ -83,21 +83,21 @@ def match_client(
     Returns (client_dict | None, confidence 0-1, method_str).
     Confidence threshold: 0.65.
     """
+    victim_stripped = victim.strip()
     vn = normalise_company(victim)
-    if len(vn) < 4:
-        return None, 0.0, ""
-
     vt = [t for t in vn.split() if len(t) > 3]
     best, best_score, best_method = None, 0.0, ""
 
     for cl in clients:
         cn = normalise_company(cl["name"])
-        if len(cn) < 4:
-            continue
         ct = [t for t in cn.split() if len(t) > 3]
 
-        # Exact
-        if vn == cn:
+        # Raw exact (before normalisation swallows short tokens)
+        if victim_stripped.lower() == cl["name"].strip().lower():
+            return cl, 1.0, "exact"
+
+        # Normalised exact
+        if len(vn) >= 4 and len(cn) >= 4 and vn == cn:
             return cl, 1.0, "exact"
 
         # Containment
@@ -113,11 +113,12 @@ def match_client(
                 best, best_score, best_method = cl, score, "token"
 
         # Fuzzy
-        fuzz = SequenceMatcher(None, vn, cn).ratio()
-        if fuzz >= 0.88:
-            score = fuzz * 0.80
-            if score > best_score:
-                best, best_score, best_method = cl, score, "fuzzy"
+        if len(vn) >= 4 and len(cn) >= 4:
+            fuzz = SequenceMatcher(None, vn, cn).ratio()
+            if fuzz >= 0.88:
+                score = fuzz * 0.80
+                if score > best_score:
+                    best, best_score, best_method = cl, score, "fuzzy"
 
     if best_score >= 0.65:
         return best, round(best_score, 3), best_method
@@ -158,6 +159,40 @@ def match_product(cve_obj: dict, products: list[dict]) -> dict | None:
     entries = _cpe_entries(cve_obj)
     if not entries:
         return None
+
+
+def rematch_ransomware() -> int:
+    """Re-run client matching on ALL existing ransomware incidents.
+
+    Returns the number of incidents newly flagged as client matches.
+    Called when clients are added/updated so historical incidents get matched.
+    """
+    from ravencti.db.connection import get_db
+    from ravencti.utils.helpers import now_str
+
+    with get_db() as conn:
+        clients = [dict(r) for r in conn.execute(
+            "SELECT id, company_name as name, category, criticality, sector FROM clients"
+        ).fetchall()]
+        if not clients:
+            return 0
+
+        incidents = conn.execute(
+            "SELECT id, victim_name FROM ransomware_incidents WHERE is_client_match=0"
+        ).fetchall()
+        matched = 0
+        for inc in incidents:
+            cl, conf, method = match_client(inc["victim_name"], clients)
+            if cl:
+                conn.execute(
+                    "UPDATE ransomware_incidents SET "
+                    "is_client_match=1, client_id=?, alert_level='critical', "
+                    "match_confidence=?, match_method=?, created_at=? "
+                    "WHERE id=?",
+                    (cl["id"], conf, method, now_str(), inc["id"]),
+                )
+                matched += 1
+        return matched
     for prod in products:
         mp = prod["name"].lower().strip()
         mv = prod["vendor"].lower().strip()

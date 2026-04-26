@@ -6,7 +6,7 @@
 <title>RavenCTI — Cyber Threat Intelligence</title>
 <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
-<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js?v=8"></script>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
@@ -42,6 +42,17 @@ button{font-family:var(--sans)}
 .btn-ghost{background:transparent;color:var(--text2);border-color:var(--border)}
 .btn-ghost:hover{background:var(--bg2);color:var(--text)}
 .btn-sm{padding:4px 12px;font-size:11px}
+.btn-scanning{opacity:.7;cursor:wait;pointer-events:none}
+.btn-lg{padding:10px 22px;font-size:13px;font-weight:600;border-radius:8px;gap:8px}
+.scan-card{display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:8px;background:var(--bg1);border:1px solid var(--border);transition:border-color .15s}
+.scan-card:hover{border-color:var(--border2)}
+.scan-card-icon{display:flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:8px;background:var(--bg2);flex-shrink:0}
+.spinner-sm{display:inline-block;width:12px;height:12px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite;vertical-align:middle;margin-right:4px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.toast{padding:10px 16px;border-radius:8;display:flex;align-items:center;gap:8;font-size:11px}
+.toast-ok{background:rgba(31,111,235,.1);border:1px solid rgba(31,111,235,.3);color:var(--text2)}
+.toast-err{background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);color:var(--red)}
+.glow-border{box-shadow:0 0 0 1px var(--glow-color,transparent),0 0 12px -4px var(--glow-color,transparent)}
 .badge{display:inline-flex;align-items:center;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:500;font-family:var(--mono);letter-spacing:.02em;transition:transform .15s}
 .badge:hover{transform:scale(1.05)}
 .b-critical{background:var(--red-bg);color:var(--red);border:1px solid rgba(248,81,73,.25)}
@@ -286,39 +297,77 @@ function DashboardPage({setPage}){
   const[alerts,setAlerts]=useState([]);
   const[actors,setActors]=useState([]);
   const[loading,setLoading]=useState(true);
-  const[scanLoad,setScanLoad]=useState(false);
-  const load=useCallback(async()=>{try{const[s,al,tl,st,ta]=await Promise.all([A.jget("/api/intelligence/summary"),A.jget("/api/alerts?status=open&limit=8"),A.jget("/api/intelligence/timeline"),A.jget("/api/scan/status"),A.jget("/api/threat-actors")]);setSummary(s);setAlerts(al);setTimeline(tl);setScanStatus(st);setActors(ta||[])}catch(e){console.error(e)}},[]);
-  const[scanStatus,setScanStatus]=useState(null);
+  const[scans,setScans]=useState({cve:null,ransomware:null,exposure:null,darkweb:null});
+  const load=useCallback(async()=>{try{const[s,al,st,ta]=await Promise.all([A.jget("/api/intelligence/summary"),A.jget("/api/alerts?status=open&limit=8"),A.jget("/api/scan/status"),A.jget("/api/threat-actors")]);setSummary(s);setAlerts(al);setActors(ta||[])}catch(e){console.error(e)}},[]);
   useEffect(()=>{load();const iv=setInterval(load,30000);return()=>clearInterval(iv)},[load]);
-  const runScan=async(t)=>{setScanLoad(true);await A.jpost("/api/scan/"+t);setTimeout(load,4000);setScanLoad(false)};
+  const runScan=async(key,endpoint)=>{
+    setScans(function(p){return Object.assign({},p,{[key]:"loading"})});
+    try{
+      var r=await A.jpost(endpoint);
+      setScans(function(p){return Object.assign({},p,{[key]:"ok",result:r})});
+      setTimeout(load,5000);
+    }catch(e){setScans(function(p){return Object.assign({},p,{[key]:"error",error:e.message})})}
+  };
 
   if(!summary)return<Loading/>;
   const riskScore=Math.min(100,summary.cves.critical*5+summary.cves.kev*8+summary.alerts.critical*10+summary.ransomware.client_matches*15);
   const riskLevel=riskScore>=75?"CRITICAL":riskScore>=50?"HIGH":riskScore>=30?"ELEVATED":riskScore>=15?"MODERATE":"LOW";
   const riskColor=riskScore>=75?"var(--red)":riskScore>=50?"var(--amber)":riskScore>=30?"var(--orange)":riskScore>=15?"var(--blue)":"var(--green)";
-  const cveData=summary.cves?[{label:"Critical",value:summary.cves.critical,color:"var(--red)"},{label:"KEV",value:summary.cves.kev,color:"var(--amber)"},{label:"High EPSS",value:summary.cves.high_epss,color:"var(--orange)"},{label:"Total",value:summary.cves.total,sub:true}].filter(d=>!d.sub):[];
-  const alertData=summary.alerts?[{label:"Critical",value:summary.alerts.critical,color:"var(--red)"},{label:"Open",value:summary.alerts.open,color:"var(--amber)"}]:[];
-  const rwData=summary.ransomware?[{label:"Client Hits",value:summary.ransomware.client_matches,color:summary.ransomware.client_matches>0?"var(--red)":"var(--green)"},{label:"Groups",value:summary.ransomware.groups,color:"var(--text2)"}]:[];
-  const expData=summary.exposure?[{label:"Relevant",value:summary.exposure.relevant,color:summary.exposure.relevant>0?"var(--green)":"var(--text2)"},{label:"24h New",value:summary.exposure.recent_24h,color:"var(--blue)"}]:[];
   const donutSegments=[{label:"Critical",value:summary.cves.critical,color:"var(--red)"},{label:"KEV",value:summary.cves.kev,color:"var(--amber)"},{label:"High EPSS",value:summary.cves.high_epss,color:"var(--orange)"},{label:"Other",value:Math.max(0,summary.cves.total-summary.cves.critical-summary.cves.kev-summary.cves.high_epss),color:"var(--bg3)"}];
+
+  var scanButtons=[
+    {key:"cve",endpoint:"/api/scan/cve",label:"Scan CVEs",desc:"NVD + KEV + EPSS",color:"#1f6feb",icon:"M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"},
+    {key:"ransomware",endpoint:"/api/scan/ransomware",label:"Ransomware",desc:"ransomware.live feed",color:"#d29922",icon:"M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"},
+    {key:"exposure",endpoint:"/api/scan/exposure",label:"Web Exposure",desc:"GitHub, Reddit, Telegram",color:"#3fb950",icon:"M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"},
+    {key:"darkweb",endpoint:"/api/collect/darkweb",label:"Dark Web",desc:"3 forum sources",color:"#bc8cff",icon:"M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"}
+  ];
 
   return(<div className="fade-in" style={{overflowY:"auto",height:"100%",padding:24}}>
     <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20}}>
-      <div><div className="section-title">Operations Dashboard</div><div className="section-sub">Real-time threat overview and intelligence summary</div></div>
-      <div style={{display:"flex",gap:8,alignItems:"center"}}>
-        <div style={{display:"flex",alignItems:"center",gap:6,marginRight:8}}><div className="dot dot-active"></div><span style={{fontSize:11,color:"var(--green)",fontWeight:500}}>LIVE</span></div>
-        <button className="btn btn-primary btn-sm" disabled={scanLoad} onClick={()=>runScan("cve")}>Scan CVEs</button>
-        <button className="btn btn-sm" style={{background:"var(--amber-bg)",color:"var(--amber)",border:"1px solid rgba(210,153,34,.25)"}} disabled={scanLoad} onClick={()=>runScan("ransomware")}>Ransomware</button>
-        <button className="btn btn-ghost btn-sm" disabled={scanLoad} onClick={()=>runScan("exposure")}>Exposure</button>
+      <div>
+        <div style={{display:"flex",alignItems:"center",gap:10}}>
+          <div className="section-title" style={{marginBottom:0}}>Operations Dashboard</div>
+          <div style={{display:"flex",alignItems:"center",gap:5,padding:"3px 10px",borderRadius:20,background:"rgba(63,185,80,.1)",border:"1px solid rgba(63,185,80,.2)"}}><div className="dot dot-active" style={{width:6,height:6}}/><span style={{fontSize:10,color:"var(--green)",fontWeight:600,letterSpacing:".5px"}}>LIVE</span></div>
+        </div>
+        <div className="section-sub" style={{marginTop:4}}>Real-time threat intelligence and scan triggers</div>
       </div>
     </div>
-    <div style={{display:"grid",gridTemplateColumns:"220px 1fr 1fr",gap:16,marginBottom:20}}>
+
+    <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:20}}>
+      {scanButtons.map(function(b){
+        var st=scans[b.key];
+        return(<div key={b.key} style={{padding:14,background:"var(--bg1)",border:"1px solid var(--border)",borderRadius:10,transition:"all .15s",cursor:"pointer",opacity:st==="loading"?0.6:1}} onClick={function(){if(st!=="loading")runScan(b.key,b.endpoint)}}
+          className={st==="loading"?"glow-border":""} style={{"--glow-color":b.color,opacity:st==="loading"?0.6:1}}>
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
+            <div style={{display:"flex",alignItems:"center",gap:8}}>
+              <div style={{width:28,height:28,borderRadius:6,background:b.color+"18",display:"flex",alignItems:"center",justifyContent:"center"}}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={b.color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d={b.icon}/></svg>
+              </div>
+              <span style={{fontSize:12,fontWeight:600,color:"var(--text)"}}>{b.label}</span>
+            </div>
+            {st==="loading"?<span className="spinner-sm" style={{borderTopColor:b.color}}/>:
+             st==="ok"?<span style={{color:"var(--green)",fontSize:11}}>&#10003;</span>:
+             st==="error"?<span style={{color:"var(--red)",fontSize:11}}>&#10007;</span>:null}
+          </div>
+          <div style={{fontSize:10,color:"var(--text3)",marginBottom:8}}>{b.desc}</div>
+          <button className={"btn btn-sm "+(st==="loading"?"btn-scanning":"btn-ghost")} disabled={st==="loading"} style={{width:"100%",justifyContent:"center",borderColor:b.color+"40",color:b.color}}>
+            {st==="loading"?"Queued\u2026":st==="ok"?"Queued":st==="error"?"Retry":"Trigger Scan"}
+          </button>
+          {st==="ok"&&scans[b.key].result&&scans[b.key].result.jobs&&<div style={{fontSize:9,color:"var(--green)",marginTop:6,textAlign:"center"}}>
+            {scans[b.key].result.jobs.map(function(j){return j.status==="queued"?j.job+" \u2705":j.job+" \u23ED"}).join(" \u00b7 ")}
+          </div>}
+          {st==="error"&&<div style={{fontSize:9,color:"var(--red)",marginTop:6,textAlign:"center"}}>{scans[b.key].error}</div>}
+        </div>);
+      })}
+    </div>
+
+    <div style={{display:"grid",gridTemplateColumns:"200px 1fr 1fr",gap:16,marginBottom:20}}>
       <div style={{background:"var(--bg1)",border:"1px solid var(--border)",borderRadius:10,padding:"24px 16px",textAlign:"center",position:"relative",overflow:"hidden"}}>
-        <div style={{position:"absolute",top:0,left:0,right:0,height:"3px",background:riskColor}}></div>
+        <div style={{position:"absolute",top:0,left:0,right:0,height:3,background:riskColor}}></div>
         <div style={{fontSize:10,color:"var(--text3)",fontWeight:600,textTransform:"uppercase",letterSpacing:"0.5px"}}>Global Risk</div>
-        <div style={{fontSize:52,fontWeight:800,color:riskColor,fontFamily:"var(--mono)",lineHeight:1,marginTop:8,animation:"threatPulse 3s ease-in-out infinite"}}>{riskScore}</div>
-        <div style={{marginTop:10}}><span className={"badge "+(riskLevel==="CRITICAL"?"b-critical":riskLevel==="HIGH"?"b-high":riskLevel==="ELEVATED"?"b-medium":"b-low")}>{riskLevel}</span></div>
-        <div style={{fontSize:10,color:"var(--text3)",marginTop:8}}>Composite threat score</div>
+        <div style={{fontSize:48,fontWeight:800,color:riskColor,fontFamily:"var(--mono)",lineHeight:1,marginTop:8,animation:"threatPulse 3s ease-in-out infinite"}}>{riskScore}</div>
+        <div style={{marginTop:8}}><span className={"badge "+(riskLevel==="CRITICAL"?"b-critical":riskLevel==="HIGH"?"b-high":riskLevel==="ELEVATED"?"b-medium":"b-low")}>{riskLevel}</span></div>
+        <div style={{fontSize:10,color:"var(--text3)",marginTop:6}}>Composite score</div>
       </div>
       <div style={{animation:"fadeScale .5s ease"}}>
         <div style={{fontSize:12,fontWeight:600,color:"var(--text2)",marginBottom:8}}>Vulnerability Breakdown</div>
@@ -327,21 +376,21 @@ function DashboardPage({setPage}){
       <div>
         <div style={{fontSize:12,fontWeight:600,color:"var(--text2)",marginBottom:8}}>Threat Landscape</div>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
-          <StatCard label="Alerts" value={summary.alerts.open} color="var(--amber)" sub={summary.alerts.critical+" critical"}/>
-          <StatCard label="Exposure" value={summary.exposure.relevant} color="var(--green)" sub={summary.exposure.open+" total"}/>
-          <StatCard label="Ransomware" value={summary.ransomware.client_matches} color={summary.ransomware.client_matches>0?"var(--red)":"var(--green)"} sub={summary.ransomware.groups+" groups tracked"}/>
-          <StatCard label="IOCs" value={summary.iocs.total} color="var(--text)" sub={summary.iocs.recent_24h+" new"}/>
+          <StatCard label="Open Alerts" value={summary.alerts.open} color="var(--amber)" sub={summary.alerts.critical+" critical"}/>
+          <StatCard label="Dark Web" value={summary.exposure.relevant} color="var(--green)" sub={summary.exposure.open+" total"}/>
+          <StatCard label="Ransomware Hits" value={summary.ransomware.client_matches} color={summary.ransomware.client_matches>0?"var(--red)":"var(--green)"} sub={summary.ransomware.groups+" groups"}/>
+          <StatCard label="Total CVEs" value={summary.cves.total} color="var(--blue)" sub={summary.cves.critical+" critical"}/>
         </div>
       </div>
     </div>
-    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginBottom:20}}>
-      <div className="card"><div className="card-head"><h3>Active Alerts</h3><button className="btn btn-ghost btn-sm" onClick={()=>setPage("alerts")}>View All \u2192</button></div>
+    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
+      <div className="card"><div className="card-head"><h3>Active Alerts</h3><button className="btn btn-ghost btn-sm" onClick={()=>setPage("alerts")}>View All &#8594;</button></div>
         <div style={{maxHeight:220,overflowY:"auto"}}>
           {alerts.length===0?<Empty text="No open alerts"/>:alerts.map(a=>(<div key={a.id} style={{padding:"10px 20px",borderBottom:"1px solid rgba(48,54,61,.5)",display:"flex",alignItems:"center",gap:12}}>
-            <SevBadge severity={a.severity}/><div style={{flex:1,minWidth:0}}><div style={{fontSize:12,fontWeight:500,color:"var(--text)",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{a.title}</div><div style={{fontSize:10,color:"var(--text3)",marginTop:2}}>{a.alert_type} \u00b7 {fmtDate(a.created_at)}</div></div></div>))}
+            <SevBadge severity={a.severity}/><div style={{flex:1,minWidth:0}}><div style={{fontSize:12,fontWeight:500,color:"var(--text)",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{a.title}</div><div style={{fontSize:10,color:"var(--text3)",marginTop:2}}>{a.alert_type} &#183; {fmtDate(a.created_at)}</div></div></div>))}
         </div>
       </div>
-      <div className="card"><div className="card-head"><h3>Tracked Threat Actors</h3><button className="btn btn-ghost btn-sm" onClick={()=>setPage("assets")}>Assets \u2192</button></div>
+      <div className="card"><div className="card-head"><h3>Tracked Threat Actors</h3><button className="btn btn-ghost btn-sm" onClick={()=>setPage("assets")}>View All &#8594;</button></div>
         <div style={{maxHeight:220,overflowY:"auto"}}>
           {actors.length===0?<Empty text="No threat actors"/>:actors.slice(0,8).map(function(a,i){var ttps=typeof a.ttps==="string"?JSON.parse(a.ttps||"[]"):a.ttps||[];return(<div key={a.id||i} style={{padding:"8px 20px",borderBottom:"1px solid rgba(48,54,61,.5)",display:"flex",alignItems:"center",gap:10}}>
             <span className="badge" style={{background:a.nation==="Russia"?"rgba(239,68,68,.15)":a.nation==="North Korea"?"rgba(168,85,247,.15)":a.nation==="China"?"rgba(234,179,8,.15)":"rgba(148,163,184,.15)",color:a.nation==="Russia"?"var(--red)":a.nation==="North Korea"?"var(--purple)":a.nation==="China"?"var(--amber)":"var(--text2)",fontSize:10,padding:"2px 8px",minWidth:60,textAlign:"center"}}>{a.nation||"Unknown"}</span>
@@ -351,14 +400,6 @@ function DashboardPage({setPage}){
         </div>
       </div>
     </div>
-    {scanStatus&&<div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12}}>
-      {[{l:"CVE Database",v:scanStatus.cve.total,c:"var(--blue)"},{l:"Ransomware Groups",v:scanStatus.ransomware.incidents,c:"var(--orange)"},{l:"Dark Intel",v:scanStatus.exposure.open,c:"var(--cyan)"},{l:"Open Alerts",v:scanStatus.alerts.open,c:"var(--amber)"}].map(function(r,i){return(
-        <div key={i} className="stat-card" style={{"--accent-color":r.c,animation:"slideUp .4s ease "+(i*60)+"ms both"}}>
-          <div style={{fontSize:10,color:"var(--text3)"}}>{r.l}</div>
-          <div style={{fontSize:18,fontWeight:600,color:r.c,fontFamily:"var(--mono)",marginTop:4}}>{fmtNum(r.v)}</div>
-        </div>
-      )})}
-    </div>}
   </div>);
 }
 
@@ -386,15 +427,33 @@ function CVEPage(){
   const[loading,setLoading]=useState(true);
   const[filter,setFilter]=useState("all");
   const[scanLoad,setScanLoad]=useState(false);
+  const[scanResult,setScanResult]=useState(null);
   const load=async()=>{setLoading(true);const c=await A.jget("/api/cves");setCves(c||[]);setLoading(false)};
   useEffect(()=>{load()},[]);
   const filtered=filter==="all"?cves:filter==="kev"?cves.filter(c=>c.in_cisa_kev):cves.filter(c=>c.risk_tier===filter);
   const tierData=[{label:"Critical",value:cves.filter(c=>c.risk_tier==="critical").length,color:"var(--red)"},{label:"High",value:cves.filter(c=>c.risk_tier==="high").length,color:"var(--amber)"},{label:"Medium",value:cves.filter(c=>c.risk_tier==="medium").length,color:"var(--orange)"},{label:"Low",value:cves.filter(c=>c.risk_tier==="low").length,color:"var(--blue)"}];
+  const runScan=async()=>{
+    setScanLoad(true);setScanResult(null);
+    try{var r=await A.jpost("/api/scan/cve");setScanResult(r)}
+    catch(e){setScanResult({error:e.message})}
+    setTimeout(load,5000);setScanLoad(false);
+  };
   return(<div className="fade-in" style={{overflowY:"auto",height:"100%",padding:24}}>
     <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20}}>
       <div><div className="section-title">CVE Intelligence</div><div className="section-sub">Vulnerability tracking with CVSS, KEV, and EPSS scoring</div></div>
-      <button className="btn btn-primary btn-sm" disabled={scanLoad} onClick={async()=>{setScanLoad(true);await A.jpost("/api/scan/cve");setTimeout(load,5000);setScanLoad(false)}}>{scanLoad?"Scanning...":"Scan CVEs"}</button>
+      <div style={{display:"flex",alignItems:"center",gap:12}}>
+        <div className="scan-card">
+          <div className="scan-card-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1f6feb" strokeWidth="2" strokeLinecap="round"><path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591-3.824 10.29-9 11.622-5.176-1.332-9-6.03-9-11.622 0-1.042.133-2.052.382-3.016z"/></svg></div>
+          <div><div style={{fontSize:11,fontWeight:500,color:"var(--text2)"}}>NVD + KEV + EPSS</div><div style={{fontSize:10,color:"var(--text3)"}}>3 collectors queued</div></div>
+        </div>
+        <button className={"btn btn-primary btn-lg "+(scanLoad?"btn-scanning":"")} disabled={scanLoad} onClick={runScan}>
+          {scanLoad?"Scanning...":"\u25C9 Scan CVEs"}
+        </button>
+      </div>
     </div>
+    {scanResult&&!scanLoad&&<div className={"toast "+(scanResult.error?"toast-err":"toast-ok")} style={{marginBottom:16}}>
+      {scanResult.error?"\u2717 "+scanResult.error:scanResult.jobs&&<span>{scanResult.jobs.map(function(j){return j.status==="queued"?"\u2705 "+j.job:"\u23ED "+j.job}).join(" \u00b7 ")} \u2014 refreshing\u2026</span>}
+    </div>}
     <div style={{display:"flex",gap:12,marginBottom:16}}>
       <div style={{flex:1}}><BarChart data={tierData} height={70}/></div>
       <div style={{display:"flex",gap:6,flexShrink:0}}>
@@ -410,14 +469,51 @@ function CVEPage(){
 
 function RansomwarePage(){
   const[matched,setMatched]=useState([]);
+  const[allIncidents,setAllIncidents]=useState([]);
   const[loading,setLoading]=useState(true);
-  const load=async()=>{setLoading(true);const d=await A.jget("/api/ransomware/matched");setMatched(d||[]);setLoading(false)};
+  const[scanLoad,setScanLoad]=useState(false);
+  const[scanResult,setScanResult]=useState(null);
+  const[viewAll,setViewAll]=useState(false);
+  const load=async()=>{
+    setLoading(true);
+    var[m,a]=await Promise.all([A.jget("/api/ransomware/matched"),A.jget("/api/ransomware?limit=200")]);
+    setMatched(m||[]);setAllIncidents(a||[]);setLoading(false);
+  };
   useEffect(()=>{load()},[]);
+  const incidents=viewAll?allIncidents:matched;
+  const runScan=async()=>{
+    setScanLoad(true);setScanResult(null);
+    try{var r=await A.jpost("/api/scan/ransomware");setScanResult(r)}
+    catch(e){setScanResult({error:e.message})}
+    setTimeout(load,6000);setScanLoad(false);
+  };
   return(<div className="fade-in" style={{overflowY:"auto",height:"100%",padding:24}}>
-    <div style={{marginBottom:20}}><div className="section-title">Ransomware Intelligence</div><div className="section-sub">Client-matched ransomware incidents only \u2014 correlated against your assets</div></div>
-    {loading?<Loading/>:matched.length===0?<div className="card"><div className="card-body"><Empty text="No client-matched ransomware incidents. Add clients in Assets to enable matching."/></div></div>
-    :<div className="card" style={{overflowX:"auto"}}><table><thead><tr><th>Victim</th><th>Group</th><th>Country</th><th>Match Reason</th><th>Confidence</th><th>Date</th></tr></thead><tbody>
-      {matched.map(m=>(<tr key={m.id} style={{background:"var(--red-bg)"}}><td style={{fontWeight:600,color:"var(--text)",fontSize:13}}>{m.victim_name}</td><td><span className="badge b-purple">{m.ransomware_group}</span></td><td style={{color:"var(--text2)"}}>{m.country||"-"}</td><td><div className="explanation">{m.match_reason||"-"}</div></td><td className="mono" style={{fontSize:11,color:"var(--amber)"}}>{(m.match_confidence||0).toFixed(0)}%</td><td className="mono" style={{fontSize:11,color:"var(--text3)",whiteSpace:"nowrap"}}>{fmtDate(m.discovered_date)}</td></tr>))}
+    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20}}>
+      <div><div className="section-title">Ransomware Intelligence</div><div className="section-sub">Live threat feed from ransomware.live \u2014 client-matched incidents highlighted</div></div>
+      <div style={{display:"flex",alignItems:"center",gap:12}}>
+        <div className="scan-card">
+          <div className="scan-card-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#d29922" strokeWidth="2" strokeLinecap="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg></div>
+          <div><div style={{fontSize:11,fontWeight:500,color:"var(--text2)"}}>ransomware.live</div><div style={{fontSize:10,color:"var(--text3)"}}>Latest group activity</div></div>
+        </div>
+        <button className={"btn btn-lg "+(scanLoad?"btn-scanning":"btn-danger")} disabled={scanLoad} onClick={runScan}>
+          {scanLoad?"Scanning...":"\u25C9 Scan Ransomware"}
+        </button>
+      </div>
+    </div>
+    {scanResult&&!scanLoad&&<div className={"toast "+(scanResult.error?"toast-err":"toast-ok")} style={{marginBottom:16}}>
+      {scanResult.error?"\u2717 "+scanResult.error:scanResult.jobs&&<span>{scanResult.jobs.map(function(j){return j.status==="queued"?"\u2705 "+j.job:"\u23ED "+j.job}).join(" \u00b7 ")} \u2014 refreshing\u2026</span>}
+    </div>}
+    <div style={{display:"flex",gap:12,marginBottom:16}}>
+      <button className={"btn btn-sm "+(!viewAll?"btn-primary":"btn-ghost")} onClick={()=>setViewAll(false)} style={!viewAll?{background:"var(--red)",borderColor:"var(--red)"}:{}}>
+        Client Matched ({matched.length})
+      </button>
+      <button className={"btn btn-sm "+(viewAll?"btn-primary":"btn-ghost")} onClick={()=>setViewAll(true)}>
+        All Incidents ({allIncidents.length})
+      </button>
+    </div>
+    {loading?<Loading/>:<div className="card" style={{overflowX:"auto"}}><table><thead><tr><th>Victim</th><th>Group</th><th>Country</th>{viewAll?"":'<th>Match Reason</th>'}<th>Confidence</th><th>Date</th></tr></thead><tbody>
+      {incidents.length===0?<tr><td colSpan={viewAll?5:6}><Empty text={viewAll?"No ransomware incidents found":"No client-matched ransomware incidents. Add clients in Assets to enable matching."}/></td></tr>:
+      incidents.map(m=>(<tr key={m.id} style={{background:m.is_client_match?"var(--red-bg)":undefined}}><td style={{fontWeight:m.is_client_match?600:400,color:"var(--text)",fontSize:13}}>{m.victim_name}</td><td><span className="badge b-purple">{m.ransomware_group}</span></td><td style={{color:"var(--text2)"}}>{m.country||"-"}</td>{viewAll?"":'<td><div className="explanation">'+(m.match_reason||"-")+'</div></td>'}<td className="mono" style={{fontSize:11,color:m.is_client_match?"var(--amber)":"var(--text3)"}}>{(m.match_confidence||0).toFixed(0)}%</td><td className="mono" style={{fontSize:11,color:"var(--text3)",whiteSpace:"nowrap"}}>{fmtDate(m.discovered_date)}</td></tr>))}
     </tbody></table></div>}
   </div>);
 }
@@ -428,29 +524,51 @@ function DarkWebPage(){
   const[loading,setLoading]=useState(true);
   const[sourceFilter,setSourceFilter]=useState("all");
   const[relFilter,setRelFilter]=useState("all");
-  const[scanLoad,setScanLoad]=useState(false);
+  const[activeScan,setActiveScan]=useState(null);
+  const[scanResult,setScanResult]=useState(null);
   const load=async()=>{setLoading(true);const[f,s]=await Promise.all([A.jget("/api/exposure?limit=300&status=open"),A.jget("/api/exposure/stats")]);setFindings((f||[]).filter(function(x){return["darkforums","patched","cracked"].includes(x.source)}));setStats(s);setLoading(false)};
   useEffect(()=>{load()},[]);
   var filtered=sourceFilter==="all"?findings:findings.filter(f=>f.source===sourceFilter);
   if(relFilter==="1")filtered=filtered.filter(f=>f.is_relevant===1);
   else if(relFilter==="0")filtered=filtered.filter(f=>f.is_relevant!==1);
   const dwSources=[...new Set(findings.map(f=>f.source))].filter(s=>["darkforums","patched","cracked"].includes(s));
-  const runScan=async(src)=>{setScanLoad(true);await A.jpost("/api/collect/"+src);setTimeout(load,5000);setScanLoad(false)};
+  const runScan=async(src)=>{
+    setActiveScan(src);setScanResult(null);
+    try{
+      var r=await A.jpost("/api/collect/"+src);
+      setScanResult({source:src,result:r});
+    }catch(e){setScanResult({source:src,error:e.message})}
+    setTimeout(load,6000);setActiveScan(null);
+  };
 
   return(<div className="fade-in" style={{overflowY:"auto",height:"100%",padding:24}}>
-    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20}}>
+    <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:20}}>
       <div><div className="section-title">Dark Web Intelligence</div><div className="section-sub">Monitoring darkforums.su, patched.to, cracked.ax for entity mentions</div></div>
-      <div style={{display:"flex",gap:6}}>
-        {["darkforums","patched","cracked"].map(s=>(<button key={s} className="btn btn-ghost btn-sm" disabled={scanLoad} onClick={()=>runScan(s)}>{s}</button>))}
+      <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:8}}>
+        <button className={"btn btn-primary btn-lg "+(!!activeScan?"btn-scanning":"")} disabled={!!activeScan} onClick={()=>runScan("darkweb")}>
+          {!!activeScan&&activeScan!=="all"?"":null}{activeScan==="all"?"\u25C9 Scanning All\u2026":"\u25C9 Scan All Dark Web"}
+        </button>
+        <div style={{display:"flex",gap:6}}>
+          {["darkforums","patched","cracked"].map(function(s){
+            var isRun=activeScan===s;
+            return(<button key={s} className={"btn btn-sm "+(isRun?"btn-scanning":"btn-ghost")} disabled={!!activeScan} onClick={()=>runScan(s)} style={{minWidth:100}}>
+              {isRun?"":null}<span>{s}</span>
+            </button>);
+          })}
+        </div>
       </div>
     </div>
+    {scanResult&&!activeScan&&<div className={"toast "+(scanResult.error?"toast-err":"toast-ok")} style={{marginBottom:16}}>
+      {scanResult.error?"\u2717 ["+scanResult.source+"] "+scanResult.error:
+      <span>&#10003; <strong>{scanResult.source}</strong> queued \u2014 refreshing in 6s\u2026</span>}
+    </div>}
     {stats&&<div style={{display:"flex",gap:12,marginBottom:16,flexWrap:"wrap"}}>
       <StatCard label="Relevant" value={stats.darkweb_relevant||0} color="var(--green)"/><StatCard label="Total Findings" value={stats.darkweb_total||0} color="var(--cyan)"/><StatCard label="Last 24h" value={stats.recent_24h} color="var(--blue)"/>
     </div>}
     <div style={{display:"flex",gap:6,marginBottom:12,flexWrap:"wrap"}}>
       <button className={"btn btn-sm "+(relFilter==="all"?"btn-primary":"btn-ghost")} onClick={()=>setRelFilter("all")}>All ({findings.length})</button>
-      <button className={"btn btn-sm "+(relFilter==="1"?"btn-primary":"btn-ghost")} style={relFilter==="1"?{background:"var(--green)",borderColor:"var(--green)"}:{}} onClick={()=>setRelFilter("1")}>Relevant ({findings.filter(f=>f.is_relevant===1).length})</button>
-      <button className={"btn btn-sm "+(relFilter==="0"?"btn-primary":"btn-ghost")} onClick={()=>setRelFilter("0")}>Other ({findings.filter(f=>f.is_relevant!==1).length})</button>
+      <button className={"btn btn-sm "+(relFilter==="1"?"btn-primary":"btn-ghost")} style={relFilter==="1"?{background:"var(--green)",borderColor:"var(--green)"}:{}} onClick={()=>setRelFilter("1")}>Relevant ({findings.filter(function(f){return f.is_relevant===1}).length})</button>
+      <button className={"btn btn-sm "+(relFilter==="0"?"btn-primary":"btn-ghost")} onClick={()=>setRelFilter("0")}>Other ({findings.filter(function(f){return f.is_relevant!==1}).length})</button>
     </div>
     {dwSources.length>0&&<div style={{display:"flex",gap:6,marginBottom:12,flexWrap:"wrap"}}>
       {dwSources.map(s=>(<button key={s} className={"btn btn-sm "+(sourceFilter===s?"btn-primary":"btn-ghost")} onClick={()=>setSourceFilter(s)}>{s} ({findings.filter(f=>f.source===s).length})</button>))}
